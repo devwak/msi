@@ -24,5 +24,5 @@ func (t *Tester) Test(ip, domain, echConfig string, useEch, useH3 bool, timeoutM
 
 // Version 返回库版本，方便确认 so/aar 是否加载成功。
 func (t *Tester) Version() string {
-	return "msi-go/1.0.0"
+	return "msi-go/1.0.1"
 }

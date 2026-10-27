@@ -29,7 +29,7 @@ import java.io.InputStreamReader
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-data class TestResult(val ip: String, val latencyMs: Long, val protocol: String)
+data class TestResult(val ip: String, val latencyMs: Long, val protocol: String, val colo: String = "")
 
 class MainActivity : AppCompatActivity() {
 
@@ -162,14 +162,15 @@ class MainActivity : AppCompatActivity() {
                             callGoTest(ip, domain, echCfg, useEch, useH3, timeout)
                         }
                         val d = done.incrementAndGet()
-                        // 解析 "ok|123|H3" 或 "fail|..."
+                        // 解析 "ok|123|H3|HKG" 或 "ok|123|H3|" 或旧版 "ok|123|H3" 或 "fail|..."
                         if (raw.startsWith("ok|")) {
                             val parts = raw.split("|")
                             val ms = parts.getOrNull(1)?.toLongOrNull() ?: 0L
                             val proto = parts.getOrNull(2) ?: if (useH3) "H3" else "H2"
+                            val colo = parts.getOrNull(3)?.takeIf { it.isNotBlank() } ?: ""
                             okCount.incrementAndGet()
                             withContext(Dispatchers.Main) {
-                                results.add(TestResult(ip, ms, proto))
+                                results.add(TestResult(ip, ms, proto, colo))
                                 results.sortBy { it.latencyMs }
                                 adapter.notifyDataSetChanged()
                                 binding.btnSave.isEnabled = true
@@ -231,7 +232,8 @@ class ResultAdapter(
     }
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = data[position]
-        holder.tv.text = "${item.ip}  ${item.latencyMs}ms  ${item.protocol}"
+        val coloPart = if (item.colo.isNotBlank()) "  ${item.colo}" else ""
+        holder.tv.text = "${item.ip}  ${item.latencyMs}ms  ${item.protocol}$coloPart"
         holder.itemView.setOnClickListener { onClick(item) }
     }
     override fun getItemCount() = data.size

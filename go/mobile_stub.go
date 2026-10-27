@@ -11,4 +11,4 @@ func (t *Tester) Test(ip, domain, echConfig string, useEch, useH3 bool, timeoutM
 	return TestOne(ip, domain, echConfig, useEch, useH3, int(timeoutMs))
 }
 
-func (t *Tester) Version() string { return "msi-go/1.0.0-stub" }
+func (t *Tester) Version() string { return "msi-go/1.0.1-stub" }
