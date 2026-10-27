@@ -9,10 +9,10 @@ on:
     branches: [ main, master ]
 
 env:
-  GO_VERSION: '1.23.x'
+  GO_VERSION: '1.23.x'                    # 必须 ≥1.23
   JAVA_VERSION: '17'
   ANDROID_API: '35'
-  ANDROID_NDK_VERSION: '26.1.10909125'   # 与 AGP 8.x 兼容的 NDK
+  ANDROID_NDK_VERSION: '26.1.10909125'    # 或改成 '27.0.12077973' / r27c 更稳
   MIN_SDK: '24'
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
           go install golang.org/x/mobile/cmd/gobind@latest
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      # ---------- Java + Android SDK / NDK ----------
+      # ---------- Java + Android SDK ----------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -47,32 +47,29 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools'   # 不装已废弃的 tools
-    
-      - name: Install Android packages (platform + NDK + build-tools)
-        run: |
-          sdkmanager --install \
-            "platforms;android-${{ env.ANDROID_API }}" \
-            "build-tools;35.0.0" \
-            "ndk;${{ env.ANDROID_NDK_VERSION }}" \
-            "cmdline-tools;latest"
-          # 接受 license
-          yes | sdkmanager --licenses || true
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      # ---------- 用专用 Action 安装 NDK（比 sdkmanager 稳定很多） ----------
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26b          # 对应 26.1.10909125
+          link-to-sdk: true          # 自动链接到 $ANDROID_HOME/ndk/...
 
       - name: Set ANDROID_NDK_HOME
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${{ env.ANDROID_NDK_VERSION }}" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/${{ env.ANDROID_NDK_VERSION }}" >> $GITHUB_ENV
-          # gomobile 会读这些
-          echo "NDK=$ANDROID_HOME/ndk/${{ env.ANDROID_NDK_VERSION }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "NDK=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          ls -la "${{ steps.setup-ndk.outputs.ndk-path }}"
 
-      # ---------- 构建 Go AAR（含 .so） ----------
+      # ---------- 构建 Go AAR ----------
       - name: Build Go AAR with gomobile
         working-directory: go
         run: |
-          # 确保 tool 依赖写进 go.mod（防止 tidy 清掉）
-          go get -tool golang.org/x/mobile/cmd/gobind
+          go get -tool golang.org/x/mobile/cmd/gobind || true
           go mod tidy
           gomobile init
           mkdir -p ../app/libs
@@ -84,7 +81,9 @@ jobs:
             .
           ls -lh ../app/libs/msi.aar
           unzip -l ../app/libs/msi.aar | grep -E 'arm64|armeabi|jni' || true
-    
+
+      # ---------- 后面 Gradle 编 APK 的部分保持不变 ----------
+
       # ---------- 构建 APK ----------
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
