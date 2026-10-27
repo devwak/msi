@@ -9,7 +9,7 @@ on:
     branches: [ main, master ]
 
 env:
-  GO_VERSION: '1.22.x'
+  GO_VERSION: '1.23.x'
   JAVA_VERSION: '17'
   ANDROID_API: '35'
   ANDROID_NDK_VERSION: '26.1.10909125'   # 与 AGP 8.x 兼容的 NDK
