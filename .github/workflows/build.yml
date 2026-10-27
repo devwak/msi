@@ -9,7 +9,7 @@ on:
     branches: [ main, master ]
 
 env:
-  GO_VERSION: '1.23.x'                    # 必须 ≥1.23
+  GO_VERSION: '1.24.x'                    # 必须 ≥1.23
   JAVA_VERSION: '17'
   ANDROID_API: '35'
   ANDROID_NDK_VERSION: '26.1.10909125'    # 或改成 '27.0.12077973' / r27c 更稳
@@ -69,7 +69,7 @@ jobs:
       - name: Build Go AAR with gomobile
         working-directory: go
         run: |
-          go get -tool golang.org/x/mobile/cmd/gobind || true
+          go get -tool golang.org/x/mobile/cmd/gobind
           go mod tidy
           gomobile init
           mkdir -p ../app/libs
@@ -81,7 +81,6 @@ jobs:
             .
           ls -lh ../app/libs/msi.aar
           unzip -l ../app/libs/msi.aar | grep -E 'arm64|armeabi|jni' || true
-
       # ---------- 后面 Gradle 编 APK 的部分保持不变 ----------
 
       # ---------- 构建 APK ----------
