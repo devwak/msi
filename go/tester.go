@@ -85,17 +85,36 @@ func doH2(ctx context.Context, ip, domain, echConfig string, useEch bool, timeou
 	if err != nil {
 		return 0, err
 	}
+	// 明确要 h2
+	tlsCfg.NextProtos = []string{"h2", "http/1.1"}
 
 	dialer := &net.Dialer{Timeout: timeout}
+
 	transport := &http.Transport{
 		Proxy:               nil,
 		DisableKeepAlives:   true,
+		ForceAttemptHTTP2:   true, // 关键：自定义 Dial/TLS 时必须开，否则不会用 h2
 		TLSHandshakeTimeout: timeout,
 		TLSClientConfig:     tlsCfg,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return dialer.DialContext(ctx, "tcp", formatAddr(ip, 443))
+		// 用 DialTLSContext，自己拨 IP + 做 TLS，避免 IP 当 Host 搞乱 SNI
+		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			raw, err := dialer.DialContext(ctx, "tcp", formatAddr(ip, 443))
+			if err != nil {
+				return nil, err
+			}
+			cfg := tlsCfg.Clone()
+			if cfg.ServerName == "" {
+				cfg.ServerName = domain
+			}
+			tlsConn := tls.Client(raw, cfg)
+			if err := tlsConn.HandshakeContext(ctx); err != nil {
+				_ = raw.Close()
+				return nil, err
+			}
+			return tlsConn, nil
 		},
 	}
+
 	client := &http.Client{
 		Transport: transport,
 		Timeout:   timeout,
@@ -104,26 +123,24 @@ func doH2(ctx context.Context, ip, domain, echConfig string, useEch bool, timeou
 		},
 	}
 
-	url := "https://" + formatAddr(ip, 443) + "/"
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
-	if err != nil {
-		return 0, err
-	}
-	req.Host = domain
-	req.Header.Set("User-Agent", "msi/1.0")
-	req.Close = true
+	// 用域名拼 URL（SNI/Host 都正确），真正连的还是上面 Dial 里的 IP
+	url := "https://" + domain + "/"
 
-	resp, err := client.Do(req)
-	if err != nil {
-		// HEAD 失败再试 GET
-		req2, err2 := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err2 != nil {
-			return 0, err
+	// 先 GET（CF 对 HEAD 有时不友好），失败再 HEAD
+	doReq := func(method string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, method, url, nil)
+		if err != nil {
+			return nil, err
 		}
-		req2.Host = domain
-		req2.Header.Set("User-Agent", "msi/1.0")
-		req2.Close = true
-		resp, err = client.Do(req2)
+		req.Host = domain
+		req.Header.Set("User-Agent", "msi/1.0")
+		req.Close = true
+		return client.Do(req)
+	}
+
+	resp, err := doReq(http.MethodGet)
+	if err != nil {
+		resp, err = doReq(http.MethodHead)
 		if err != nil {
 			return 0, err
 		}
