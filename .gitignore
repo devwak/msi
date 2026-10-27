@@ -1,0 +1,33 @@
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Go
+go/vendor/
+*.exe
+*.test
+*.out
+
+# 生成的 aar（由 CI 或本地 gomobile 生成）
+app/libs/*.aar
+!app/libs/.gitkeep
+
+# 系统
+.DS_Store
+Thumbs.db
+*~
+*.swp
