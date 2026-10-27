@@ -7,7 +7,7 @@ type Tester struct{}
 
 func NewTester() *Tester { return &Tester{} }
 
-func (t *Tester) Test(ip, domain, echConfig string, useEch, useH3 bool, timeoutMs int) string {
+func (t *Tester) Test(ip, domain, echConfig string, useEch, useH3 bool, timeoutMs int32) string {
 	return TestOne(ip, domain, echConfig, useEch, useH3, timeoutMs)
 }
 

@@ -18,7 +18,7 @@ func NewTester() *Tester {
 
 // Test 测试单个 IP。
 // 参数与 TestOne 相同，返回相同格式字符串。
-func (t *Tester) Test(ip, domain, echConfig string, useEch, useH3 bool, timeoutMs int) string {
+func (t *Tester) Test(ip, domain, echConfig string, useEch, useH3 bool, timeoutMs int32) string {
 	return TestOne(ip, domain, echConfig, useEch, useH3, timeoutMs)
 }
 
